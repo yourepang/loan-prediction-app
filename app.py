@@ -96,5 +96,9 @@ if submit_button:
     pred = model.predict(data)
     data['loan_prediction'] = pred
 
+    result = "Approved ✅" if pred[0] == 1 else "Not Approved ❌"
+    st.subheader("Prediction Result:")
+    st.success(result)
+
     # Tampilkan hasil prediksi
     st.write("Loan Prediction:", data[['loan_prediction']])
