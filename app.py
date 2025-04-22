@@ -20,8 +20,6 @@ with open('ord_encoder.pkl', 'rb') as f:
     ord_encoder = pickle.load(f)
 with open('scaler.pkl', 'rb') as f:
     scaler = pickle.load(f)
-with open('input_columns.pkl', 'rb') as f:
-    expected_columns = pickle.load(f)
 
 st.title("Loan Approval Prediction")
 
@@ -70,11 +68,12 @@ if submit_button:
     # One-hot encode
     encoded = encoder.transform(data[['loan_intent', 'person_home_ownership']])
     df_encoded = pd.DataFrame(encoded.toarray(), columns=encoder.get_feature_names_out(), index=data.index)
-
     data = pd.concat([data, df_encoded], axis=1)
+
+    # Drop original categorical columns
     data.drop(columns=['loan_intent', 'person_home_ownership'], inplace=True)
 
-    # Ordinal encode
+    # Ordinal encode education
     data[['person_education']] = ord_encoder.transform(data[['person_education']])
 
     # Scaling
@@ -90,18 +89,9 @@ if submit_button:
     ]
     data[cols_to_scale] = scaler.transform(data[cols_to_scale])
 
-    # Validasi kolom
-    missing_cols = set(expected_columns) - set(data.columns)
-    for col in missing_cols:
-        data[col] = 0  # isi default 0 jika kolom hilang
+    # Prediction
+    prediction = model.predict(data)[0]
 
-    data = data[expected_columns]  # pastikan urutannya benar
-
-    # Prediksi
-    pred = model.predict(data)
-    proba = model.predict_proba(data)
-
-    result = "Approved ✅" if pred[0] == 1 else "Not Approved ❌"
-    st.subheader("Prediction Result:")
+    result = "Approved ✅" if prediction == 1 else "Not Approved ❌"
+    st.subheader("Loan Prediction Result:")
     st.success(result)
-    st.write("Approval Probability:", f"{proba[0][1]:.2f}")
