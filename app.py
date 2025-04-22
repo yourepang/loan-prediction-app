@@ -100,5 +100,10 @@ if submit_button:
     st.subheader("Prediction Result:")
     st.success(result)
 
+    proba = model.predict_proba(df)
+    df['approval_probability'] = proba[:, 1]
+
+    st.write(df[['approval_probability']])
+
     # Tampilkan hasil prediksi
     st.write("Loan Prediction:", data[['loan_prediction']])
