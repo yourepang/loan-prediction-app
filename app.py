@@ -11,7 +11,7 @@ import streamlit as st
 import pandas as pd
 import pickle
 
-# Load model dan encoder
+# Load model dan preprocessing tools
 with open('loan_model.pkl', 'rb') as f:
     model = pickle.load(f)
 with open('encoder.pkl', 'rb') as f:
@@ -20,10 +20,12 @@ with open('ord_encoder.pkl', 'rb') as f:
     ord_encoder = pickle.load(f)
 with open('scaler.pkl', 'rb') as f:
     scaler = pickle.load(f)
+with open('input_columns.pkl', 'rb') as f:
+    expected_columns = pickle.load(f)
 
 st.title("Loan Approval Prediction")
 
-# Form untuk input manual
+# Input form
 with st.form(key='loan_form'):
     person_age = st.number_input("Age", min_value=18, max_value=100, value=30)
     person_gender = st.selectbox("Gender", options=["Male", "Female"])
@@ -39,15 +41,13 @@ with st.form(key='loan_form'):
     credit_score = st.number_input("Credit Score", min_value=0, value=700)
     previous_loan_defaults_on_file = st.selectbox("Previous Loan Defaults", options=["Yes", "No"])
 
-    # Submit button
     submit_button = st.form_submit_button("Predict")
 
 if submit_button:
-    # Preprocessing (mirip seperti di model.predict_from_file)
+    # Preprocessing
     person_gender = 'male' if person_gender == "Male" else 'female'
     previous_loan_defaults_on_file = 1 if previous_loan_defaults_on_file == "Yes" else 0
 
-    # Creating a DataFrame with input values
     data = pd.DataFrame({
         'person_age': [person_age],
         'person_gender': [person_gender],
@@ -64,20 +64,18 @@ if submit_button:
         'previous_loan_defaults_on_file': [previous_loan_defaults_on_file]
     })
 
-    # Preprocessing (same steps as before)
-    data['person_gender'] = data['person_gender'].replace({'Male': 'male', 'fe male': 'female'})
-    data.replace({
-        "person_gender": {"male": 1, "female": 0},
-        "previous_loan_defaults_on_file": {1: 1, 0: 0}
-    }, inplace=True)
+    # Binary encode
+    data['person_gender'] = data['person_gender'].replace({'male': 1, 'female': 0})
 
+    # One-hot encode
     encoded = encoder.transform(data[['loan_intent', 'person_home_ownership']])
-    df_encoded = pd.DataFrame(encoded.toarray(), columns=encoder.get_feature_names_out())
-    data.reset_index(drop=True, inplace=True)
-    data = pd.concat([data, df_encoded], axis=1)
+    df_encoded = pd.DataFrame(encoded.toarray(), columns=encoder.get_feature_names_out(), index=data.index)
 
-    data[['person_education']] = ord_encoder.transform(data[['person_education']])
+    data = pd.concat([data, df_encoded], axis=1)
     data.drop(columns=['loan_intent', 'person_home_ownership'], inplace=True)
+
+    # Ordinal encode
+    data[['person_education']] = ord_encoder.transform(data[['person_education']])
 
     # Scaling
     cols_to_scale = [
@@ -92,18 +90,18 @@ if submit_button:
     ]
     data[cols_to_scale] = scaler.transform(data[cols_to_scale])
 
+    # Validasi kolom
+    missing_cols = set(expected_columns) - set(data.columns)
+    for col in missing_cols:
+        data[col] = 0  # isi default 0 jika kolom hilang
+
+    data = data[expected_columns]  # pastikan urutannya benar
+
     # Prediksi
     pred = model.predict(data)
-    data['loan_prediction'] = pred
+    proba = model.predict_proba(data)
 
     result = "Approved ✅" if pred[0] == 1 else "Not Approved ❌"
     st.subheader("Prediction Result:")
     st.success(result)
-
-    proba = model.predict_proba(data)
-    data['approval_probability'] = proba[:, 1]
-
-    st.write(data[['approval_probability']])
-
-    # Tampilkan hasil prediksi
-    st.write("Loan Prediction:", data[['loan_prediction']])
+    st.write("Approval Probability:", f"{proba[0][1]:.2f}")
