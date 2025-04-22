@@ -28,10 +28,7 @@ class LoanPredictionModel:
 
     def clean_data(self):
         self.df['person_income'] = self.df['person_income'].fillna(67055.0)
-        self.df['person_gender'] = self.df['person_gender'].replace({
-            'Male': 'male',
-            'fe male': 'female'
-        })
+        self.df['person_gender'] = self.df['person_gender'].replace({'Male': 'male', 'fe male': 'female'})
         df_encode = {
             "person_gender": {"male": 1, "female": 0},
             "previous_loan_defaults_on_file": {"Yes": 1, "No": 0}
