@@ -23,26 +23,63 @@ with open('scaler.pkl', 'rb') as f:
 
 st.title("Loan Approval Prediction")
 
-uploaded_file = st.file_uploader("Upload CSV untuk Prediksi", type=['csv'])
+# Form untuk input manual
+with st.form(key='loan_form'):
+    person_age = st.number_input("Age", min_value=18, max_value=100, value=30)
+    person_gender = st.selectbox("Gender", options=["Male", "Female"])
+    person_education = st.selectbox("Education", options=["High School", "Associate", "Bachelor", "Master", "Doctorate"])
+    person_income = st.number_input("Income", min_value=0, value=50000)
+    person_emp_exp = st.number_input("Employment Experience (in years)", min_value=0, value=5)
+    person_home_ownership = st.selectbox("Home Ownership", options=["OWN", "MORTGAGE", "RENT"])
+    loan_amnt = st.number_input("Loan Amount", min_value=0, value=10000)
+    loan_intent = st.selectbox("Loan Intent", options=["EDUCATION", "MEDICAL", "VENTURE", "PERSONAL", "DEBTCONSOLIDATION", "HOMEIMPROVEMENT"])
+    loan_int_rate = st.number_input("Loan Interest Rate", min_value=0.0, value=5.5)
+    loan_percent_income = st.number_input("Loan Percent Income", min_value=0.0, value=0.3)
+    cb_person_cred_hist_length = st.number_input("Credit History Length (in years)", min_value=0, value=10)
+    credit_score = st.number_input("Credit Score", min_value=0, value=700)
+    previous_loan_defaults_on_file = st.selectbox("Previous Loan Defaults", options=["Yes", "No"])
 
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+    # Submit button
+    submit_button = st.form_submit_button("Predict")
 
+if submit_button:
     # Preprocessing (mirip seperti di model.predict_from_file)
-    df['person_gender'] = df['person_gender'].replace({'Male': 'male', 'fe male': 'female'})
-    df.replace({
+    person_gender = 'male' if person_gender == "Male" else 'female'
+    previous_loan_defaults_on_file = 1 if previous_loan_defaults_on_file == "Yes" else 0
+
+    # Creating a DataFrame with input values
+    data = pd.DataFrame({
+        'person_age': [person_age],
+        'person_gender': [person_gender],
+        'person_education': [person_education],
+        'person_income': [person_income],
+        'person_emp_exp': [person_emp_exp],
+        'person_home_ownership': [person_home_ownership],
+        'loan_amnt': [loan_amnt],
+        'loan_intent': [loan_intent],
+        'loan_int_rate': [loan_int_rate],
+        'loan_percent_income': [loan_percent_income],
+        'cb_person_cred_hist_length': [cb_person_cred_hist_length],
+        'credit_score': [credit_score],
+        'previous_loan_defaults_on_file': [previous_loan_defaults_on_file]
+    })
+
+    # Preprocessing (same steps as before)
+    data['person_gender'] = data['person_gender'].replace({'Male': 'male', 'fe male': 'female'})
+    data.replace({
         "person_gender": {"male": 1, "female": 0},
-        "previous_loan_defaults_on_file": {"Yes": 1, "No": 0}
+        "previous_loan_defaults_on_file": {1: 1, 0: 0}
     }, inplace=True)
 
-    encoded = encoder.transform(df[['loan_intent', 'person_home_ownership']])
+    encoded = encoder.transform(data[['loan_intent', 'person_home_ownership']])
     df_encoded = pd.DataFrame(encoded.toarray(), columns=encoder.get_feature_names_out())
-    df.reset_index(drop=True, inplace=True)
-    df = pd.concat([df, df_encoded], axis=1)
+    data.reset_index(drop=True, inplace=True)
+    data = pd.concat([data, df_encoded], axis=1)
 
-    df[['person_education']] = ord_encoder.transform(df[['person_education']])
-    df.drop(columns=['loan_intent', 'person_home_ownership'], inplace=True)
+    data[['person_education']] = ord_encoder.transform(data[['person_education']])
+    data.drop(columns=['loan_intent', 'person_home_ownership'], inplace=True)
 
+    # Scaling
     cols_to_scale = [
         'person_age',
         'person_income',
@@ -53,8 +90,11 @@ if uploaded_file:
         'cb_person_cred_hist_length',
         'credit_score'
     ]
-    df[cols_to_scale] = scaler.transform(df[cols_to_scale])
+    data[cols_to_scale] = scaler.transform(data[cols_to_scale])
 
-    pred = model.predict(df)
-    df['loan_prediction'] = pred
-    st.write(df[['loan_prediction']])
+    # Prediksi
+    pred = model.predict(data)
+    data['loan_prediction'] = pred
+
+    # Tampilkan hasil prediksi
+    st.write("Loan Prediction:", data[['loan_prediction']])
