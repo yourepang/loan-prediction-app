@@ -26,7 +26,7 @@ st.title("Loan Approval Prediction")
 # Input form
 with st.form(key='loan_form'):
     person_age = st.number_input("Age", min_value=18, max_value=100, value=30)
-    person_gender = st.selectbox("Gender", options=["Male", "Female"])
+    person_gender = st.selectbox("Gender", options=["male", "female"])
     person_education = st.selectbox("Education", options=["High School", "Associate", "Bachelor", "Master", "Doctorate"])
     person_income = st.number_input("Income", min_value=0, value=50000)
     person_emp_exp = st.number_input("Employment Experience (in years)", min_value=0, value=5)
